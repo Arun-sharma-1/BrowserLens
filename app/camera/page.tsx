@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { usePhoto } from "../hooks/useCamera";
+import { usePhoto } from "../hooks/usePhoto";
 const UserPhotoComponent = () => {
   const { videoRef, canvasRef, startCamera, takePhoto, photo } = usePhoto();
   return (
