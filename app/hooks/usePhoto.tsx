@@ -4,57 +4,81 @@ export const usePhoto = () => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photoBlob, setPhotoBlob] = useState<Blob | null>(null);
+  const [isCameraOn, setIsCameraOn] = useState(false);
 
-  const startCamera = async () => {
+  const startStream = async () => {
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
+      const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
       });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
+
+      if (!videoRef.current) {
+        console.error("videoRef still not ready");
+        return;
       }
+
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
     } catch (err) {
-      console.error("Error accessing camera:", err);
+      console.error("Camera error:", err);
     }
   };
-  const stopCamera = () => {
-    stream?.getTracks().forEach((t) => t.stop());
+  const startCamera = () => {
+    setIsCameraOn(true);
   };
-
-  const takePhoto = async () => {
+  const takePhoto = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (video && canvas) {
-      const context = canvas.getContext("2d");
+    if (!video || !canvas) return;
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+    const size = 300;
+    canvas.width = size;
+    canvas.height = size;
 
-      context?.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-      const imageData = canvas.toDataURL("image/png");
-      setPhoto(imageData);
-      stopCamera();
-      return imageData;
-    }
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+
+    ctx.drawImage(video, 0, 0, size, size);
+
+    // const image = canvas.toDataURL("image/png");
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return;
+        setPhotoBlob(blob);
+      },
+      "image/jpeg",
+      0.9
+    );
+
+    // stop camera
+    const stream = video.srcObject as MediaStream;
+    stream?.getTracks().forEach((track) => track.stop());
+
+    setIsCameraOn(false);
   };
-
+  const reTakePhoto = () => {
+    setPhotoBlob(null);
+    setIsCameraOn(true);
+  };
   useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
+    if (!isCameraOn) return;
+    startStream();
+  }, [isCameraOn]);
 
   return {
     videoRef,
     canvasRef,
-    photo,
+    photoBlob,
+    isCameraOn,
     startCamera,
-    stopCamera,
     takePhoto,
+    reTakePhoto,
   };
 };
