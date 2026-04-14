@@ -1,35 +1,49 @@
 "use client";
 import { ChangeEvent, useState } from "react";
-import { useForm, SubmitHandler } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm, SubmitHandler, useFieldArray } from "react-hook-form";
 type formType = {
   firstName: string;
   lastName: string;
 };
+
+//define schema
+const schema = z.object({
+  firstName: z.string().trim().min(1, "First Name is Required"),
+  lastName: z.string().trim().min(3, "Last Name is required"),
+  tags: z.array(
+    z.object({
+      id: z.number(),
+      name: z.string().trim().min(1, "Tags are required.."),
+    })
+  ),
+});
+type SchemaTypa = z.infer<typeof schema>;
+
 const FormComponent = () => {
   //state management by react-hook-form(Less re-rendering and Controller and Uncontrolled)
   const {
+    control,
     register,
     watch,
     handleSubmit,
     formState: { errors },
-  } = useForm<formType>();
-  const lastName = watch("lastName"); // for tracking the onchange of certain events
+  } = useForm<SchemaTypa>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      tags: [],
+    },
+    mode: "onSubmit",
+    reValidateMode: "onSubmit",
+  });
+  //   const lastName = watch("lastName"); // for tracking the onchange of certain events
 
-  // console.log("Lastname ", lastName)
-  //state management by useState(reduntant method because of component re-rendering on each event , CONTROLLED)
+  const { fields, append, remove } = useFieldArray<SchemaTypa>({
+    control,
+    name: "tags",
+  });
 
-  //   const [formState, setFormState] = useState({
-  //     firstName: "",
-  //     lastName: "",
-  //   });
-  //   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-  //     const { name, value } = e.target;
-
-  //     setFormState((prev) => ({
-  //       ...prev,
-  //       [name]: value,
-  //     }));
-  //   };
   const submitForm = (data: formType) => {
     console.log("Form State : ", data, errors);
   };
@@ -53,15 +67,44 @@ const FormComponent = () => {
           type="text"
           id="lastName"
           //   name="lastName"
-          {...register("lastName", {
-            required: "Last Name is also required.....",
-          })}
+          {...register("lastName")}
           className="border-2 border-black"
           //   onChange={handleChange}
         />
       </div>
-      {errors.lastName && errors.lastName.message}
-      <div onClick={handleSubmit(submitForm)}>Submit</div>
+      {/* {errors.firstName && errors.firstName.message}
+      {errors.lastName && errors.lastName.message} */}
+
+      <div>
+        {/* Add Tag Button */}
+        <button
+          type="button"
+          onClick={() =>
+            append({
+              id: fields.length + 1,
+              name: `Tag ${fields.length + 1}`,
+            })
+          }
+        >
+          Add Tag
+        </button>
+
+        {fields?.map((field, i) => (
+          <div key={field.id}>
+            <input placeholder="Enter tag" {...register(`tags.${i}.name`)} />
+            <button
+              type="button"
+              onClick={() => remove(i)} // ✅ correct usage
+            >
+              x
+            </button>
+          </div>
+        ))}
+      </div>
+      {errors.tags && errors.tags.message}
+      <button type="submit" onClick={handleSubmit(submitForm)}>
+        Submit
+      </button>
     </form>
   );
 };
